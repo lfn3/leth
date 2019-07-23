@@ -73,18 +73,6 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
             }
         }
 
-    override fun contains(element: T): Boolean {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun containsAll(elements: Collection<T>): Boolean {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun isEmpty(): Boolean {
-        return size == 0
-    }
-
     override fun iterator(): Iterator<T> {
         dslProvider().use { dsl ->
             return baseQuery(dsl, desc = false)

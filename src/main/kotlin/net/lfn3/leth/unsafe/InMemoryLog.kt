@@ -13,10 +13,6 @@ class InMemoryLog<T> : Log<T> {
     override val size: Int
         get() = items.size
 
-    override fun contains(element: T): Boolean = items.contains(element)
-
-    override fun containsAll(elements: Collection<T>): Boolean = items.containsAll(elements)
-
     override fun isEmpty(): Boolean = items.isEmpty()
 
     override fun head(): T? = items.last()

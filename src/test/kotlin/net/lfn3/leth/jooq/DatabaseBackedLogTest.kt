@@ -53,10 +53,6 @@ class DatabaseBackedLogTest : LogTest({
         override val size: Int
             get() = log.size
 
-        override fun contains(element: T): Boolean = log.contains(element)
-
-        override fun containsAll(elements: Collection<T>): Boolean = log.containsAll(elements)
-
         override fun isEmpty(): Boolean = log.isEmpty()
 
         override fun iterator(): Iterator<T> = log.iterator()

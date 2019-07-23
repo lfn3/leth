@@ -6,6 +6,7 @@ import net.lfn3.leth.LogWriter
 import org.jooq.DSLContext
 import org.jooq.TableRecord
 import org.jooq.exception.DataAccessException
+import java.lang.IllegalArgumentException
 import java.sql.SQLException
 
 class DatabaseBackedLog<T, R : TableRecord<R>>(

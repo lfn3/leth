@@ -10,5 +10,5 @@ open class Computed<T, U>(log: LogReader<T>, op: (T, U?) -> U?) {
         log.tail(boundOp)
     }
 
-    var value : U? = null
+    protected var value : U? = null
 }

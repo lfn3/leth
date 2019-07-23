@@ -4,12 +4,18 @@ import net.lfn3.leth.LogReader
 import net.lfn3.leth.PartitonedLog
 import org.jooq.DSLContext
 import org.jooq.TableRecord
+import org.jooq.impl.DSL
 
 //TODO: tests
 class DatabaseBackedPartitionedLog<K, V, F, R : TableRecord<R>>(
     private val logMappings: PartitionedLogMappings<K, V, F, R>,
     private val dslProvider: () -> DSLContext
-) : PartitonedLog<K, V> {
+) : PartitonedLog<K, V>, LogReader<Pair<K, V>> by DatabaseBackedLogReader<Pair<K, V>, R>(
+    logMappings.asReadOnlyLogMappings(DSL.trueCondition(), {
+        val fromRecord = logMappings.fromRecord(it)
+        Pair(logMappings.extractKey(fromRecord), fromRecord)
+    }),
+    dslProvider) {
     override fun get(key: K): LogReader<V>? {
         val asDbVal = logMappings.toDb(key)
         val partitionLogMappings = logMappings.asReadOnlyLogMappings(logMappings.byField.eq(asDbVal))
