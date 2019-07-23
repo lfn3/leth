@@ -1,6 +1,7 @@
 package net.lfn3.leth.unsafe
 
 import net.lfn3.leth.Log
+import java.lang.IllegalArgumentException
 import java.util.*
 
 /**
@@ -34,8 +35,13 @@ class InMemoryLog<T> : Log<T> {
     }
 
     override fun update(getSequence: () -> Long, fn: (T) -> T) {
-        val toUpdate = items.get(Math.toIntExact(getSequence()))
+        val toUpdate = items[Math.toIntExact(getSequence())]
         val updated = fn(toUpdate)
+
+        if (updated == toUpdate) {
+            return
+        }
+
         record(updated)
     }
 

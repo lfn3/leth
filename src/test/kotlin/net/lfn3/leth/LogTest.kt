@@ -45,7 +45,7 @@ open class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val entry = Pair(12L, 3L)
         val seq = log.record(entry)
         //Should fail since we don't have this sequence, yet.
-        assertThrows(IllegalArgumentException::class.java) { log.update({ seq + 1 }, { Pair(it.first, it.second + 1)}) }
+        assertThrows(Exception::class.java) { log.update({ seq + 1 }, { Pair(it.first, it.second + 1)}) }
 
         assertEquals(1, log.size)
         assertEquals(entry, log.get(seq))
@@ -76,7 +76,7 @@ open class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val seq = log.record(entry)
         log.tail { fail("Should not have written back identical value") }
 
-        log.update({ seq + 1 }, { Pair(it.first, it.second)})
+        log.update({ seq }, { Pair(it.first, it.second)})
 
         assertEquals(1, log.size)
     }

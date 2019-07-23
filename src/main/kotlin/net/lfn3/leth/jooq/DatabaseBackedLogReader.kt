@@ -9,7 +9,7 @@ import org.jooq.SelectSeekStep1
 open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMappings: ReadOnlyLogMappings<T, R>,
                                                   private val dslProvider: () -> DSLContext
 ) : LogReader<T> {
-    private var hwm : Long = -1
+    private var hwm : Long = 0
     //TODO: these won't get notified if something gets changed when not linked to a writer.
     private val observers : MutableList<(newEntry: T) -> Unit> = ArrayList()
 
@@ -88,6 +88,7 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         if (seq != hwm + 1) {
             val missed = fetch(hwm + 1, seq)
             observers.forEach { ob -> missed.forEach { ob(it) }}
+            hwm = seq
         } else {
             hwm = seq
         }
