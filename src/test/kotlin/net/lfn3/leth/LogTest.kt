@@ -2,6 +2,7 @@ package net.lfn3.leth
 
 import net.lfn3.leth.unsafe.InMemoryPartitionedLog
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Disabled
 import java.lang.IllegalArgumentException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -9,6 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.fail
 
+@Disabled
 open class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     @Test
     fun `The log returns a single recorded entry`() {
@@ -145,6 +147,37 @@ open class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         log.tail { counter.incrementAndGet() }
 
         log.record(Pair(5L, 12L))
+        assertEquals(1, counter.get())
+    }
+
+    @Test
+    fun `Can tail from a position in the log`() {
+        val log = ctor.invoke()
+
+        val counter = AtomicInteger(0)
+        log.record(Pair(5L, 12L))
+
+        log.tail(1) { counter.incrementAndGet() }
+
+        log.record(Pair(5L, 12L))
+        assertEquals(1, counter.get())
+    }
+
+    @Test
+    fun `Can tail only updates using size`() {
+        val log = ctor.invoke()
+        val counter = AtomicInteger(0)
+
+
+        val entry = Pair(12L, 3L)
+        val seq = log.record(entry)
+
+        log.tail(log.size) { counter.incrementAndGet() }
+
+        assertEquals(0, counter.get())
+
+        log.update({ seq }, { Pair(it.first, it.second + 1)})
+
         assertEquals(1, counter.get())
     }
 

@@ -1,14 +1,14 @@
 package net.lfn3.leth
 
-open class Computed<T, U>(log: LogReader<T>, op: (T, U?) -> U?) {
+open class Computed<T, U>(log: LogReader<T>, init: U, op: (acc : U, T) -> U) {
+    protected var value : U = init
+
     init {
+        value = log.fold(init, op)
         val boundOp : (T) -> Unit = {
-            val result = op(it, value)
+            val result = op(value, it)
             value = result
         }
-        log.forEach(boundOp)
         log.tail(boundOp)
     }
-
-    protected var value : U? = null
 }

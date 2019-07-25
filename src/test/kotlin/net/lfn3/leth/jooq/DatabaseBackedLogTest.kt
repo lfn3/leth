@@ -50,7 +50,7 @@ class DatabaseBackedLogTest : LogTest({
 
         override fun tail(fn: (newEntry: T) -> Unit) = log.tail(fn)
 
-        override val size: Int
+        override val size: Long
             get() = log.size
 
         override fun isEmpty(): Boolean = log.isEmpty()

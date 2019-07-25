@@ -3,9 +3,12 @@ package net.lfn3.leth
 interface LogReader<T> : Iterable<T> {
     fun head() : T?
     fun get(sequence: Long) : T?
-    fun tail(fn : (newEntry: T) -> Unit)
-    val size: Int
-    fun isEmpty(): Boolean = size == 0
+    fun tail(fn : (T) -> Unit) {
+        tail(0, fn)
+    }
+    fun tail(start : Long, fn : (T) -> Unit)
+    val size: Long
+    fun isEmpty(): Boolean = size == 0L
 
     companion object {
         fun <T, U> map(log: LogReader<T>, f : (T) -> U) : LogReader<U> {
@@ -24,7 +27,11 @@ interface LogReader<T> : Iterable<T> {
                     log.tail { fn(f(it)) }
                 }
 
-                override val size: Int
+                override fun tail(start: Long, fn: (U) -> Unit) {
+                    log.tail(start) { fn(f(it)) }
+                }
+
+                override val size: Long
                     get() = log.size
 
                 override fun isEmpty(): Boolean = log.isEmpty()

@@ -9,6 +9,7 @@ import org.jooq.SelectSeekStep1
 open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMappings: ReadOnlyLogMappings<T, R>,
                                                   private val dslProvider: () -> DSLContext
 ) : LogReader<T> {
+    @Volatile
     private var hwm : Long = 0
     //TODO: these won't get notified if something gets changed when not linked to a writer.
     private val observers : MutableList<(newEntry: T) -> Unit> = ArrayList()
@@ -27,6 +28,7 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
     }
 
     override fun head(): T? {
+        //TODO: fetch from hwm and fire observers?
         dslProvider().use { dsl ->
             val record = baseQuery(dsl)
                 .limit(1)
@@ -62,14 +64,16 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
-    override fun tail(fn: (newEntry: T) -> Unit) {
+    override fun tail(start: Long, fn: (T) -> Unit) {
+        //TODO: how to handle concurrent inserts? Probably something involving the high water mark
+        fetch(start, hwm).forEach(fn)
         observers.add(fn)
     }
 
-    override val size: Int
+    override val size: Long
         get() {
             dslProvider().use { dsl ->
-                return dsl.selectCount().from(readOnlyLogMappings.table).where(readOnlyLogMappings.filter).fetchOne().value1()
+                return dsl.selectCount().from(readOnlyLogMappings.table).where(readOnlyLogMappings.filter).fetchOne().value1().toLong()
             }
         }
 
@@ -85,13 +89,15 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
     //This is used to fast path around on write
     //TODO: tests!
     internal fun notify(seq: Long, new : T) {
+        if (seq <= hwm) { //Should have already seen these messages (somehow?!)
+            return
+        }
+
         if (seq != hwm + 1) {
             val missed = fetch(hwm + 1, seq)
             observers.forEach { ob -> missed.forEach { ob(it) }}
-            hwm = seq
-        } else {
-            hwm = seq
         }
+        hwm = seq
         //TODO: check this matches the filter?
 
         observers.forEach { it(new) }

@@ -11,8 +11,8 @@ class InMemoryLog<T> : Log<T> {
     private val items: MutableList<T> = ArrayList()
     private val observers : MutableList<(newEntry: T) -> Unit> = ArrayList()
 
-    override val size: Int
-        get() = items.size
+    override val size: Long
+        get() = items.size.toLong()
 
     override fun isEmpty(): Boolean = items.isEmpty()
 
@@ -26,6 +26,15 @@ class InMemoryLog<T> : Log<T> {
     }
 
     override fun iterator() = ArrayList(items).iterator()
+
+    override fun tail(fn: (newEntry: T) -> Unit) {
+        observers.add(fn)
+    }
+
+    override fun tail(start: Long, fn: (T) -> Unit) {
+        items.subList(start.toInt(), items.size).forEach(fn)
+        observers.add(fn)
+    }
 
     override fun record(entry: T): Long {
         items.add(entry)
@@ -43,9 +52,5 @@ class InMemoryLog<T> : Log<T> {
         }
 
         record(updated)
-    }
-
-    override fun tail(fn: (newEntry: T) -> Unit) {
-        observers.add(fn)
     }
 }
