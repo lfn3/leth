@@ -27,4 +27,8 @@ class InMemoryPartitionedLog<K, V>(from: LogReader<V>, keyExtractor: (V) -> K) :
     override fun head(key: K): V? {
         return get(key)?.head()
     }
+
+    override fun partitions(): Map<K, LogReader<V>> {
+        return value
+    }
 }

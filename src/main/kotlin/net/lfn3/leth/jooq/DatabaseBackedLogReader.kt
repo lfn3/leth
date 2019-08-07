@@ -98,8 +98,9 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
             observers.forEach { ob -> missed.forEach { ob(it) }}
         }
         hwm = seq
-        //TODO: check this matches the filter?
 
-        observers.forEach { it(new) }
+        if (readOnlyLogMappings.inProcessFilter(new)) {
+            observers.forEach { it(new) }
+        }
     }
 }

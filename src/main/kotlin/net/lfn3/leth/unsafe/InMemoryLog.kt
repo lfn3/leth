@@ -16,7 +16,7 @@ class InMemoryLog<T> : Log<T> {
 
     override fun isEmpty(): Boolean = items.isEmpty()
 
-    override fun head(): T? = items.last()
+    override fun head(): T? = if (isEmpty()) { null } else { items.last() }
 
     override fun get(sequence: Long): T? {
         if (items.size - 1 < sequence) {

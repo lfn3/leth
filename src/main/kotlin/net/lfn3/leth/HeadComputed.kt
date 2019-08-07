@@ -1,10 +1,14 @@
 package net.lfn3.leth
 
-abstract class Computed<T, U>(log: LogReader<T>, init: U, op: (acc : U, T) -> U) {
+abstract class HeadComputed <T, U>(log: LogReader<T>, init: U, op: (acc : U, T) -> U) {
     protected var value : U = init
 
     init {
-        value = log.fold(init, op)
+        val head = log.head()
+        if (head != null) {
+            value = op(init, head)
+        }
+
         val boundOp : (T) -> Unit = {
             val result = op(value, it)
             value = result

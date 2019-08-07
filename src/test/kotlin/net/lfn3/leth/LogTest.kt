@@ -3,7 +3,6 @@ package net.lfn3.leth
 import net.lfn3.leth.unsafe.InMemoryPartitionedLog
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Disabled
-import java.lang.IllegalArgumentException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,7 +10,7 @@ import kotlin.test.assertFalse
 import kotlin.test.fail
 
 @Disabled
-open class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
+abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     @Test
     fun `The log returns a single recorded entry`() {
         val log = ctor.invoke()

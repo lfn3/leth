@@ -10,5 +10,15 @@ data class ReadOnlyLogMappings<T, R : Record>(
     val table: Table<R>,
     val fromRecord: (R) -> T,
     val sequenceField: TableField<R, Long>,
-    val filter: Condition = DSL.trueCondition()
-)
+    //TODO: sanity check that the two filters match?
+    val filter: Condition = DSL.trueCondition(),
+    val inProcessFilter: (T) -> Boolean = { true }
+) {
+    fun <K, F> asPartitioned(
+        byField: TableField<R, F>,
+        keyToDatabaseValue: (K) -> F,
+        extractKey: (T) -> K
+    ): PartitionedLogMappings<K, T, F, R> {
+        return PartitionedLogMappings(table, fromRecord, sequenceField, byField, keyToDatabaseValue, extractKey)
+    }
+}
