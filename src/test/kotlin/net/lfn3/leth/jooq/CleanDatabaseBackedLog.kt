@@ -10,7 +10,7 @@ import java.sql.Connection
 
 
 class CleanDatabaseBackedLog<T, R : TableRecord<R>>(
-    logWriterMappings: LogWriterMappings<T, R>,
+    val logWriterMappings: LogWriterMappings<T, R>,
     private val jdbcUrl : String = DEFAULT_JDBC_URL + System.nanoTime(),
     val dslProvider : () -> DSLContext = { DSL.using(jdbcUrl) },
     private val log: DatabaseBackedLog<T, R> = DatabaseBackedLog(logWriterMappings, dslProvider)

@@ -18,6 +18,11 @@ class InMemoryLog<T> : Log<T> {
 
     override fun head(): T? = if (isEmpty()) { null } else { items.last() }
 
+    override fun headWithSeq(): Pair<Long, T>? {
+        val head = head() ?: return null
+        return Pair((items.size - 1).toLong(), head)
+    }
+
     override fun get(sequence: Long): T? {
         if (items.size - 1 < sequence) {
             return null

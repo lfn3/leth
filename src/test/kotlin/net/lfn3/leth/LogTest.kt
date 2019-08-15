@@ -3,6 +3,8 @@ package net.lfn3.leth
 import net.lfn3.leth.unsafe.InMemoryPartitionedLog
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Disabled
+import java.util.concurrent.Future
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,12 +30,12 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val entry = Pair(12L, 3L)
         val seq = log.record(entry)
 
-        log.update({ seq }, { Pair(it.first, it.second + 1)})
+        log.update({ seq }, { Pair(it.first, it.second + 1) })
 
         val updatedEntry = Pair(12L, 4L)
         assertEquals(updatedEntry, log.head())
 
-        val iter =  log.iterator()
+        val iter = log.iterator()
         assertEquals(entry, iter.next())
         assertEquals(updatedEntry, iter.next())
         assertFalse(iter.hasNext())
@@ -46,7 +48,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val entry = Pair(12L, 3L)
         val seq = log.record(entry)
         //Should fail since we don't have this sequence, yet.
-        assertThrows(Exception::class.java) { log.update({ seq + 1 }, { Pair(it.first, it.second + 1)}) }
+        assertThrows(Exception::class.java) { log.update({ seq + 1 }, { Pair(it.first, it.second + 1) }) }
 
         assertEquals(1, log.size)
         assertEquals(entry, log.get(seq))
@@ -64,7 +66,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         assertEquals(1, counter.get())
 
-        log.update({ seq }, { Pair(it.first, it.second + 1)})
+        log.update({ seq }, { Pair(it.first, it.second + 1) })
 
         assertEquals(2, counter.get())
     }
@@ -77,7 +79,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val seq = log.record(entry)
         log.tail { fail("Should not have written back identical value") }
 
-        log.update({ seq }, { Pair(it.first, it.second)})
+        log.update({ seq }, { Pair(it.first, it.second) })
 
         assertEquals(1, log.size)
     }
@@ -105,7 +107,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val first = Pair(6L, 7L)
         log.record(first)
 
-        val iter =  log.iterator()
+        val iter = log.iterator()
 
         assertEquals(first, iter.next())
         log.record(Pair(6L, 7L))
@@ -175,7 +177,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         assertEquals(0, counter.get())
 
-        log.update({ seq }, { Pair(it.first, it.second + 1)})
+        log.update({ seq }, { Pair(it.first, it.second + 1) })
 
         assertEquals(1, counter.get())
     }
@@ -191,5 +193,74 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         log.record(Pair(5L, 12L))
         assertEquals(1, counter.get())
+    }
+
+    @Test
+    fun `Should only apply a single conflicting update`() {
+        val log = ctor.invoke()
+
+        val seq = log.record(Pair(5, 1))
+
+        log.update({ seq }, { Pair(it.first, it.second + 1) })
+        assertThrows(java.lang.Exception::class.java, { log.update({ seq }, { Pair(it.first, it.second + 1) }) })
+
+        assertEquals(2, log.head()!!.second)
+    }
+
+    @Test
+    fun `Should only apply a single concurrent conflicting update`() {
+        val log = ctor.invoke()
+
+        val seq = log.record(Pair(5, 1))
+        val semaphore = Semaphore(0)
+
+        val thread = Thread {
+            log.update({ seq }, {
+                semaphore.acquire()
+                Pair(it.first, it.second + 1)
+            })
+        }
+
+        thread.start()
+        try {
+            log.update({ seq }, {
+                semaphore.release()
+                Pair(it.first, it.second + 1)
+            })
+        } catch (ignored : java.lang.Exception) {
+
+        }
+
+        thread.join()
+        assertEquals(2, log.head()!!.second)
+    }
+
+    //TODO: this test is a bit flaky at the moment, probably indicating a concurrency bug in the update impl.
+    @Test
+    fun `Should retry conflicting update`() {
+        val log = ctor.invoke()
+
+        val seq = log.record(Pair(5, 1))
+        val semaphore = Semaphore(0)
+
+        val thread = Thread {
+            log.update({ seq }, {
+                semaphore.acquire()
+                Pair(it.first, it.second + 1)
+            })
+        }
+
+        thread.start()
+        try {
+            log.update({ log.headWithSeq()?.first ?: seq }, {
+                semaphore.release()
+                Pair(it.first, it.second + 1)
+            })
+        } catch (ignored : java.lang.Exception) {
+
+        }
+
+        thread.join()
+        assertEquals(3, log.head()!!.second)
     }
 }

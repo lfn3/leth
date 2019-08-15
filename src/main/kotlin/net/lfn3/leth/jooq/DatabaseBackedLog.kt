@@ -6,13 +6,21 @@ import net.lfn3.leth.LogWriter
 import org.jooq.DSLContext
 import org.jooq.TableRecord
 import org.jooq.exception.DataAccessException
-import java.sql.SQLException
 
 class DatabaseBackedLog<T, R : TableRecord<R>>(
     private val logWriterMappings: LogWriterMappings<T, R>,
     private val dslProvider: () -> DSLContext,
-    private val reader: DatabaseBackedLogReader<T, R> = DatabaseBackedLogReader(logWriterMappings.asReadonly(), dslProvider = dslProvider)
+    private val reader: DatabaseBackedLogReader<T, R> = DatabaseBackedLogReader(
+        logWriterMappings.asReadonly(),
+        dslProvider = dslProvider
+    )
 ) : Log<T>, LogWriter<T>, LogReader<T> by reader {
+
+    companion object {
+        private const val MAX_RETRIES = 5
+        private const val NO_LAST_SEQ: Long = -1
+    }
+
     override fun record(entry: T): Long {
         val dbr = logWriterMappings.toRecord.invoke(entry)
 
@@ -28,7 +36,7 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
             val query = dsl.insertInto(logWriterMappings.table)
                 .set(dbr)
 
-            if (logWriterMappings.supportsReturning) {
+            if (logWriterMappings.supportsReturning) { //TODO: should be able to use dialect
                 query.returning(logWriterMappings.sequenceField)
                     .fetchOne()
                     .get(logWriterMappings.sequenceField)
@@ -40,26 +48,62 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
         }
     }
 
+    @Throws(DataAccessException::class)
     override fun update(getSequence: () -> Long, fn: (T) -> T) {
-        val seq = getSequence()
-        val toUpdate = get(seq) ?: throw IllegalArgumentException("No log entry exists for sequence $seq")
-        val updated = fn(toUpdate)
+        var lastSeq: Long = NO_LAST_SEQ
+        var lastEx : DataAccessException? = null
+        for (i in 1..MAX_RETRIES) {
+            val seq = getSequence()
+            if (seq == lastSeq && lastEx != null) {
+                throw lastEx
+            }
 
-        if (updated == toUpdate) {
-            return
-        }
+            try {
+                val (insertedSeq, updated) = dslProvider().use { dsl ->
+                    val record = dsl.selectFrom(logWriterMappings.table)
+                        .where(logWriterMappings.sequenceField.eq(seq))
+                        .forUpdate()
+                        .fetchOne() ?: throw IllegalArgumentException("No log entry exists for sequence $seq")
 
-        val updatedRecord = logWriterMappings.toRecord(updated)
+                    val toUpdate = logWriterMappings.fromRecord(record)
 
-        updatedRecord.set(logWriterMappings.ancestorSequenceField, seq)
+                    val updated = fn(toUpdate)
 
-        try {
-            val insertedSeq = executeInsert(updatedRecord)
-            reader.notify(insertedSeq, updated)
-        } catch (e: DataAccessException) {
-            e.getCause(SQLException::class.java)
-            throw e
-            //TODO: retry on conflict by re-getting seq
+                    if (updated == toUpdate) {
+                        return
+                    }
+
+                    val updatedRecord = logWriterMappings.toRecord(updated)
+
+                    updatedRecord.set(logWriterMappings.ancestorSequenceField, seq)
+
+                    val query = dsl.insertInto(logWriterMappings.table)
+                        .set(updatedRecord)
+
+                    if (logWriterMappings.supportsReturning) { //TODO: should be able to use dialect?
+                        Pair(
+                            query.returning(logWriterMappings.sequenceField)
+                                .fetchOne()
+                                .get(logWriterMappings.sequenceField), updated
+                        )
+                    } else {
+                        query.execute()
+
+                        Pair(dsl.fetchValue("select scope_identity()") as Long, updated)
+                    }
+                }
+                reader.notify(insertedSeq, updated)
+
+                return
+            } catch (e: DataAccessException) {
+                //TODO only retry on a constraint violation
+                when {
+                    lastSeq == NO_LAST_SEQ -> lastSeq = seq
+                    i == MAX_RETRIES -> throw e
+                    lastSeq != seq -> lastSeq = seq
+                }
+                lastEx = e
+            }
         }
     }
 }

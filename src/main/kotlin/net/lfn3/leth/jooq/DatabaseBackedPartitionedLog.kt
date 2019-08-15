@@ -35,6 +35,8 @@ class DatabaseBackedPartitionedLog<K, V, F, R : Record>(
         }
     }
 
+    //TODO: perf on this is going to be abysmal for the partitioned head cache case, since we'll hit each log once,
+    // querying issuing n queries to the db where n = number of partitions.
     override fun partitions(): Map<K, LogReader<V>> {
         dslProvider().use { dsl ->
             return dsl.select(logMappings.table.fields().toList())

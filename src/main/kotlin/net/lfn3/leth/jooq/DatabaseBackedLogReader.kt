@@ -41,6 +41,20 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
+    override fun headWithSeq(): Pair<Long, T>? {
+        //TODO: fetch from hwm and fire observers?
+        dslProvider().use { dsl ->
+            val record = baseQuery(dsl)
+                .limit(1)
+                .fetchAny()
+
+            return when {
+                record != null -> Pair(record.get(readOnlyLogMappings.sequenceField), readOnlyLogMappings.fromRecord(record))
+                else -> null
+            }
+        }
+    }
+
     override fun get(sequence: Long): T? {
         dslProvider().use { dsl ->
             val record = baseQuery(dsl, readOnlyLogMappings.sequenceField.eq(sequence))

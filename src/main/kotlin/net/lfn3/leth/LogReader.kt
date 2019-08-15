@@ -2,6 +2,7 @@ package net.lfn3.leth
 
 interface LogReader<T> : Iterable<T> {
     fun head() : T?
+    fun headWithSeq() : Pair<Long, T>?
     fun get(sequence: Long) : T?
     fun tail(fn : (T) -> Unit) {
         tail(0, fn)
@@ -16,6 +17,11 @@ interface LogReader<T> : Iterable<T> {
                 override fun head(): U? {
                     val head = log.head() ?: return null
                     return f(head)
+                }
+
+                override fun headWithSeq(): Pair<Long, U>? {
+                    val (seq, head) = log.headWithSeq() ?: return null
+                    return Pair(seq, f(head))
                 }
 
                 override fun get(sequence: Long): U? {
