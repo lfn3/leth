@@ -2,9 +2,6 @@ package net.lfn3.leth
 
 import net.lfn3.leth.unsafe.InMemoryPartitionedLog
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Disabled
-import java.util.concurrent.Future
-import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.Collectors
 import java.util.stream.LongStream
@@ -13,7 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.fail
 
-@Disabled
 abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     @Test
     fun `The log returns a single recorded entry`() {
@@ -210,63 +206,6 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     }
 
     @Test
-    fun `Should only apply a single concurrent conflicting update`() {
-        val log = ctor.invoke()
-
-        val seq = log.record(Pair(5, 1))
-        val semaphore = Semaphore(0)
-
-        val thread = Thread {
-            log.update({ seq }, {
-                semaphore.acquire()
-                Pair(it.first, it.second + 1)
-            })
-        }
-
-        thread.start()
-        try {
-            log.update({ seq }, {
-                semaphore.release()
-                Pair(it.first, it.second + 1)
-            })
-        } catch (ignored : java.lang.Exception) {
-
-        }
-
-        thread.join()
-        assertEquals(2, log.head()!!.second)
-    }
-
-    @Test
-    fun `Should retry conflicting update`() {
-        val log = ctor.invoke()
-
-        val seq = log.record(Pair(5, 1))
-        val semaphore = Semaphore(0)
-
-        val thread = Thread {
-            log.update({ log.headWithSeq()?.first ?: seq }, {
-                semaphore.acquire()
-                semaphore.release()
-                Pair(it.first, it.second + 1)
-            })
-        }
-
-        thread.start()
-        try {
-            log.update({ log.headWithSeq()?.first ?: seq }, {
-                semaphore.release()
-                Pair(it.first, it.second + 1)
-            })
-        } catch (ignored : java.lang.Exception) {
-
-        }
-
-        thread.join()
-        assertEquals(3, log.head()!!.second)
-    }
-
-    @Test
     fun `Should be able to batch insert`() {
         val log = ctor.invoke()
 
@@ -278,7 +217,17 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     }
 
     @Test
-    fun `Batch insert should not conflict with other inserts`() {
+    fun `Batch insert should fire observers`() {
+        TODO()
+    }
+
+    @Test
+    fun `Should be able to update`() {
+        TODO()
+    }
+
+    @Test
+    fun `Should only retry updates 5 times`() {
         TODO()
     }
 }
