@@ -36,15 +36,9 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
             val query = dsl.insertInto(logWriterMappings.table)
                 .set(dbr)
 
-            if (logWriterMappings.supportsReturning) { //TODO: should be able to use dialect
-                query.returning(logWriterMappings.sequenceField)
-                    .fetchOne()
-                    .get(logWriterMappings.sequenceField)
-            } else {
-                query.execute()
-
-                dsl.fetchValue("select scope_identity()") as Long
-            }
+            query.returning(logWriterMappings.sequenceField)
+                .fetchOne()
+                .get(logWriterMappings.sequenceField)
         }
     }
 
@@ -80,17 +74,11 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
                     val query = dsl.insertInto(logWriterMappings.table)
                         .set(updatedRecord)
 
-                    if (logWriterMappings.supportsReturning) { //TODO: should be able to use dialect?
-                        Pair(
-                            query.returning(logWriterMappings.sequenceField)
-                                .fetchOne()
-                                .get(logWriterMappings.sequenceField), updated
-                        )
-                    } else {
-                        query.execute()
+                    val resultingSeq = query.returning(logWriterMappings.sequenceField)
+                        .fetchOne()
+                        .get(logWriterMappings.sequenceField)
 
-                        Pair(dsl.fetchValue("select scope_identity()") as Long, updated)
-                    }
+                    Pair(resultingSeq, updated)
                 }
                 reader.notify(insertedSeq, updated)
 

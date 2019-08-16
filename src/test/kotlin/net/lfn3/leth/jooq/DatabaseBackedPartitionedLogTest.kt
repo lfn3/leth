@@ -18,8 +18,7 @@ class DatabaseBackedPartitionedLogTest {
                 rec.valueTwo = it.second
                 rec
             },
-            Logged.LOGGED.ANCESTOR_ID,
-            false
+            Logged.LOGGED.ANCESTOR_ID
         )
 
         val log = CleanDatabaseBackedLog(tableDescriptor)

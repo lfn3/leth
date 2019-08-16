@@ -3,9 +3,6 @@ package net.lfn3.leth.jooq
 import net.lfn3.leth.*
 import net.lfn3.leth.jooq.tables.Logged
 import net.lfn3.leth.jooq.tables.records.LoggedRecord
-import org.jooq.TableRecord
-import org.jooq.impl.DSL
-import java.sql.Connection
 
 class DatabaseBackedLogTest : LogTest({
     val tableDescriptor = LogWriterMappings(
@@ -18,8 +15,7 @@ class DatabaseBackedLogTest : LogTest({
             rec.valueTwo = it.second
             rec
         },
-        Logged.LOGGED.ANCESTOR_ID,
-        false
+        Logged.LOGGED.ANCESTOR_ID
     )
 
     CleanDatabaseBackedLog(tableDescriptor)
