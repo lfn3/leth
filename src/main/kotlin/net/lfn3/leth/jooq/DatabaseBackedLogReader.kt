@@ -23,7 +23,7 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         return if (desc) {
             query.orderBy(readOnlyLogMappings.sequenceField.desc())
         } else {
-            query.orderBy(readOnlyLogMappings.sequenceField)
+            query.orderBy(readOnlyLogMappings.sequenceField.asc())
         }
     }
 
@@ -68,11 +68,12 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
-    private fun fetch(fromInclusive: Long, toExclusive: Long) : Collection<T> {
+    private fun fetch(fromInclusive: Long, toExclusive: Long, desc: Boolean = true) : Collection<T> {
         dslProvider().use { dsl ->
             return baseQuery(dsl,
                 readOnlyLogMappings.sequenceField.greaterOrEqual(fromInclusive),
-                readOnlyLogMappings.sequenceField.lessThan(toExclusive))
+                readOnlyLogMappings.sequenceField.lessThan(toExclusive),
+                desc = desc)
                 .fetch()
                 .map(readOnlyLogMappings.fromRecord)
         }
@@ -80,7 +81,7 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
 
     override fun tail(start: Long, fn: (T) -> Unit) {
         //TODO: how to handle concurrent inserts? Probably something involving the high water mark
-        fetch(start, hwm).forEach(fn)
+        fetch(start, hwm, desc = false).forEach(fn)
         observers.add(fn)
     }
 

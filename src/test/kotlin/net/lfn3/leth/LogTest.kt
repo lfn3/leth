@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Disabled
 import java.util.concurrent.Future
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.stream.Collectors
+import java.util.stream.LongStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -217,7 +219,6 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val thread = Thread {
             log.update({ seq }, {
                 semaphore.acquire()
-                semaphore.release()
                 Pair(it.first, it.second + 1)
             })
         }
@@ -263,5 +264,21 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         thread.join()
         assertEquals(3, log.head()!!.second)
+    }
+
+    @Test
+    fun `Should be able to batch insert`() {
+        val log = ctor.invoke()
+
+        val toInsert : Collection<Pair<Long, Long>> = LongStream.range(1, 100).mapToObj { Pair(1.toLong(), it) }.collect(Collectors.toList())
+        log.batchRecord(toInsert)
+
+        val iter = toInsert.iterator()
+        log.tail { assertEquals(iter.next(), it) }
+    }
+
+    @Test
+    fun `Batch insert should not conflict with other inserts`() {
+        TODO()
     }
 }
