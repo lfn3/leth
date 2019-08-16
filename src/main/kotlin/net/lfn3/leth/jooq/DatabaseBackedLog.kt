@@ -103,6 +103,8 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
                     lastSeq != seq -> lastSeq = seq
                 }
                 lastEx = e
+                // TODO Should we back off a little bit?
+                // Thread.sleep((i * 10).toLong())
             }
         }
     }

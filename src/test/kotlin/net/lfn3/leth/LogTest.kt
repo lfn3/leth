@@ -217,6 +217,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val thread = Thread {
             log.update({ seq }, {
                 semaphore.acquire()
+                semaphore.release()
                 Pair(it.first, it.second + 1)
             })
         }
@@ -235,7 +236,6 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         assertEquals(2, log.head()!!.second)
     }
 
-    //TODO: this test is a bit flaky at the moment, probably indicating a concurrency bug in the update impl.
     @Test
     fun `Should retry conflicting update`() {
         val log = ctor.invoke()
@@ -244,8 +244,9 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val semaphore = Semaphore(0)
 
         val thread = Thread {
-            log.update({ seq }, {
+            log.update({ log.headWithSeq()?.first ?: seq }, {
                 semaphore.acquire()
+                semaphore.release()
                 Pair(it.first, it.second + 1)
             })
         }
