@@ -3,7 +3,9 @@ package net.lfn3.leth
 import net.lfn3.leth.unsafe.InMemoryPartitionedLog
 import org.junit.jupiter.api.Assertions.assertThrows
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.stream.Collectors
+import java.util.stream.IntStream
 import java.util.stream.LongStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -209,7 +211,8 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     fun `Should be able to batch insert`() {
         val log = ctor.invoke()
 
-        val toInsert : Collection<Pair<Long, Long>> = LongStream.range(1, 100).mapToObj { Pair(1.toLong(), it) }.collect(Collectors.toList())
+        val toInsert: Collection<Pair<Long, Long>> =
+            LongStream.range(1, 100).mapToObj { Pair(1.toLong(), it) }.collect(Collectors.toList())
         log.batchRecord(toInsert)
 
         val iter = toInsert.iterator()
@@ -218,16 +221,40 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
     @Test
     fun `Batch insert should fire observers`() {
-        TODO()
-    }
+        val log = ctor.invoke()
 
-    @Test
-    fun `Should be able to update`() {
-        TODO()
+        val counter = AtomicInteger(0)
+
+        log.tail { counter.incrementAndGet() }
+
+        val toInsert = 100
+        log.batchRecord(IntStream.range(1, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toList()))
+
+        assertEquals(toInsert, counter.get())
     }
 
     @Test
     fun `Should only retry updates 5 times`() {
-        TODO()
+        val log = ctor.invoke()
+
+        val counter = AtomicLong(0)
+
+        log.record(Pair(0, 0))
+
+        LongStream.range(0, 6).forEach {
+            log.update({ log.headWithSeq()!!.first }, { Pair(it.first, it.second + 1) })
+        }
+
+        assertThrows(java.lang.Exception::class.java) {
+            log.update({
+                val nextSeq = counter.incrementAndGet()
+                if (5 < nextSeq) {
+                    fail("More than 5 attempts to get sequence")
+                }
+                nextSeq
+            }, { Pair(it.first, it.second + 1) })
+        }
+
+        assertEquals(5, counter.get())
     }
 }
