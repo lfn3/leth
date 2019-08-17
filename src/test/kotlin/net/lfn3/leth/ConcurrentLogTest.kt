@@ -96,4 +96,10 @@ abstract class ConcurrentLogTest(private val ctor : () -> Log<Pair<Long, Long>>)
         thread.join()
         assertEquals(insertCount + 2, log.size)
     }
+
+    @Test
+    fun `Tailing should not miss any entries`() {
+        TODO("Spin up threads to insert and repeatedly tail, make sure tail threads see all inserts at the end of" +
+                "the test")
+    }
 }

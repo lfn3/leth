@@ -54,7 +54,6 @@ interface LogReader<T> : Iterable<T> {
                         }
                     }
                 }
-
             }
         }
     }
