@@ -91,7 +91,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val first = Pair(6L, 7L)
         val second = Pair(7L, 7L)
         val third = Pair(9L, 7L)
-        log.batchRecord(first, second, third)
+        log.batchRecord(arrayListOf(first, second, third))
 
         val iter = log.iterator()
 

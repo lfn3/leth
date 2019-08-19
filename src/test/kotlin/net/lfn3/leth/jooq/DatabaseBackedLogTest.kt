@@ -3,8 +3,10 @@ package net.lfn3.leth.jooq
 import net.lfn3.leth.*
 import net.lfn3.leth.jooq.tables.Logged
 import net.lfn3.leth.jooq.tables.records.LoggedRecord
-import org.jooq.DSLContext
+import kotlin.test.Test
 import org.junit.jupiter.api.Nested
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
 
 class DatabaseBackedLogTest {
     private val tableDescriptor = LogWriterMappings(
@@ -29,4 +31,65 @@ class DatabaseBackedLogTest {
 
     @Nested
     inner class Concurrent : ConcurrentLogTest(this::makeLog)
+
+    @Test
+    fun `Should see database updates outside of log in head`() {
+        val log = CleanDatabaseBackedLog(tableDescriptor)
+
+        val record = LoggedRecord()
+        record.valueOne = 5
+        record.valueTwo = 12
+
+        log.dslProvider().use { dsl ->
+            dsl.insertInto(tableDescriptor.table)
+                .set(record)
+                .execute()
+        }
+
+        val head = log.head()
+
+        assertEquals(5, head!!.first)
+        assertEquals(12, head.second)
+    }
+
+    @Test
+    fun `Should see database updates outside of log in tail`() {
+        val log = CleanDatabaseBackedLog(tableDescriptor)
+
+        val record = LoggedRecord()
+        record.valueOne = 5
+        record.valueTwo = 12
+
+        log.dslProvider().use { dsl ->
+            dsl.insertInto(tableDescriptor.table)
+                .set(record)
+                .execute()
+        }
+
+        val counter = AtomicInteger()
+
+        log.tail { counter.incrementAndGet() }
+
+        assertEquals(1, counter.get())
+    }
+
+    @Test
+    fun `Should see database updates outside of log pushed to tail`() {
+        val log = CleanDatabaseBackedLog(tableDescriptor)
+
+        val record = LoggedRecord()
+        record.valueOne = 5
+        record.valueTwo = 12
+
+        val counter = AtomicInteger()
+        log.tail { counter.incrementAndGet() }
+
+        log.dslProvider().use { dsl ->
+            dsl.insertInto(tableDescriptor.table)
+                .set(record)
+                .execute()
+        }
+
+        assertEquals(1, counter.get())
+    }
 }

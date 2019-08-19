@@ -2,7 +2,7 @@ package net.lfn3.leth
 
 import net.lfn3.leth.caches.HeadCache
 import net.lfn3.leth.unsafe.InMemoryLog
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 

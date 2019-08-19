@@ -7,9 +7,7 @@ interface LogWriter<T> {
      */
     fun update(getSequence: () -> Long, fn: (T) -> T)
 
-    fun batchRecord(entries: Collection<T>) {
+    fun batchRecord(entries: Iterable<T>) {
         entries.forEach { record(it) }
     }
-
-    fun batchRecord(vararg entries: T) = batchRecord(entries.toList())
 }
