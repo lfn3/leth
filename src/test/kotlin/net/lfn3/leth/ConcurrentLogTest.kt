@@ -99,7 +99,13 @@ abstract class ConcurrentLogTest(private val ctor : () -> Log<Pair<Long, Long>>)
 
     @Test
     fun `Tailing should not miss any entries`() {
-        TODO("Spin up threads to insert and repeatedly tail, make sure tail threads see all inserts at the end of" +
-                "the test")
+        TODO("Spin up threads to insert and repeatedly tail, " +
+                "make sure tail threads see all inserts at the end of the test")
+    }
+
+    @Test
+    fun `Interleaved batch inserts should be tailed correctly`() {
+        TODO("Have multiple threads batch insert, check everything shows up in the `tail`, " +
+                "and with correct (= to the database) ordering")
     }
 }

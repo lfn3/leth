@@ -100,7 +100,8 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
     override fun batchRecord(entries: Iterable<T>) {
         dslProvider().use { dsl ->
             dsl.batchInsert(entries.map(logWriterMappings.toRecord)).execute()
-            //TODO: notify observers - need sequences though
         }
+
+        reader.notifyBatch(entries)
     }
 }

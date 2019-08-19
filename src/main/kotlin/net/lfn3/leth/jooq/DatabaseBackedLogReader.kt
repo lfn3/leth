@@ -5,6 +5,8 @@ import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.SelectSeekStep1
+import org.jooq.impl.DSL
+import java.util.concurrent.CopyOnWriteArrayList
 
 open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMappings: ReadOnlyLogMappings<T, R>,
                                                   private val dslProvider: () -> DSLContext
@@ -12,7 +14,8 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
     @Volatile
     private var hwm : Long = 0
     //TODO: these won't get notified if something gets changed when not linked to a writer.
-    private val observers : MutableList<(newEntry: T) -> Unit> = ArrayList()
+    // Unless you attach a thread backed log poller
+    private val observers : MutableList<(newEntry: T) -> Unit> = CopyOnWriteArrayList()
 
     private fun baseQuery(dsl : DSLContext, vararg whereClauses: Condition, desc: Boolean = true): SelectSeekStep1<R, Long> {
          var query = dsl.selectFrom(readOnlyLogMappings.table)
@@ -79,6 +82,17 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
+    private fun fetchWithSeq(fromInclusive: Long, toExclusive: Long, desc: Boolean = true) : Collection<T> {
+        dslProvider().use { dsl ->
+            return baseQuery(dsl,
+                readOnlyLogMappings.sequenceField.greaterOrEqual(fromInclusive),
+                readOnlyLogMappings.sequenceField.lessThan(toExclusive),
+                desc = desc)
+                .fetch()
+                .map(readOnlyLogMappings.fromRecord)
+        }
+    }
+
     override fun tail(start: Long, fn: (T) -> Unit) {
         //TODO: how to handle concurrent inserts? Probably something involving the high water mark
         fetch(start, hwm, desc = false).forEach(fn)
@@ -117,5 +131,31 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         if (readOnlyLogMappings.inProcessFilter(new)) {
             observers.forEach { it(new) }
         }
+    }
+
+    internal fun notifyBatch(vals : Collection<Pair<Long, T>>) {
+        TODO("Here we've got the sequences, so we can just pull any gaps from the database?")
+    }
+
+    private fun getDbHwm(): Long {
+        return dslProvider().use { dsl ->
+            dsl.select(DSL.max(readOnlyLogMappings.sequenceField)).fetchOne().get(0, Long::class.java)
+        }
+    }
+
+    fun checkDatabase() {
+        val dbHwm = getDbHwm()
+
+        if (dbHwm > hwm) {
+            notifyBatch(fetchWithSeq(hwm, dbHwm + 1))
+        }
+    }
+
+    fun notifyBatch(vals: Iterable<T>) {
+        // We know the hwm must have grown by at least `vals.size`. If it has grown by exactly `vals.size` then we can
+        // fast path the observers, otherwise we have to go back to the db for the whole batch.
+
+
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
