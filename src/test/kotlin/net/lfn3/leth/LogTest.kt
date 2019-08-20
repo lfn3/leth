@@ -228,7 +228,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         log.tail { counter.incrementAndGet() }
 
         val toInsert = 100
-        log.batchRecord(IntStream.range(1, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toList()))
+        log.batchRecord(IntStream.range(0, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toList()))
 
         assertEquals(toInsert, counter.get())
     }

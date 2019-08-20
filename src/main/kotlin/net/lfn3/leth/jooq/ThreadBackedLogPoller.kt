@@ -24,7 +24,7 @@ class ThreadBackedLogPoller(private val threadFactory: ThreadFactory,
         }
     }
 
-    fun pollLoop() {
+    private fun pollLoop() {
         do {
             log.checkDatabase()
             Thread.sleep(betweenPolls.toMillis())

@@ -97,7 +97,7 @@ class DatabaseBackedLog<T, R : TableRecord<R>>(
         }
     }
 
-    override fun batchRecord(entries: Iterable<T>) {
+    override fun batchRecord(entries: Collection<T>) {
         dslProvider().use { dsl ->
             dsl.batchInsert(entries.map(logWriterMappings.toRecord)).execute()
         }

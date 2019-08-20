@@ -82,17 +82,6 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
-    private fun fetchWithSeq(fromInclusive: Long, toExclusive: Long, desc: Boolean = true) : Collection<T> {
-        dslProvider().use { dsl ->
-            return baseQuery(dsl,
-                readOnlyLogMappings.sequenceField.greaterOrEqual(fromInclusive),
-                readOnlyLogMappings.sequenceField.lessThan(toExclusive),
-                desc = desc)
-                .fetch()
-                .map(readOnlyLogMappings.fromRecord)
-        }
-    }
-
     override fun tail(start: Long, fn: (T) -> Unit) {
         //TODO: how to handle concurrent inserts? Probably something involving the high water mark
         fetch(start, hwm, desc = false).forEach(fn)
@@ -133,10 +122,6 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         }
     }
 
-    internal fun notifyBatch(vals : Collection<Pair<Long, T>>) {
-        TODO("Here we've got the sequences, so we can just pull any gaps from the database?")
-    }
-
     private fun getDbHwm(): Long {
         return dslProvider().use { dsl ->
             dsl.select(DSL.max(readOnlyLogMappings.sequenceField)).fetchOne().get(0, Long::class.java)
@@ -147,15 +132,24 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         val dbHwm = getDbHwm()
 
         if (dbHwm > hwm) {
-            notifyBatch(fetchWithSeq(hwm, dbHwm + 1))
+            notifyObservers(fetch(hwm, dbHwm + 1))
         }
     }
 
-    fun notifyBatch(vals: Iterable<T>) {
+    private fun notifyObservers(vals: Collection<T>) {
+        //TODO: split up observers to head and non-head. Just feed the last item to head observers
+        observers.forEach { vals.forEach(it) }
+        hwm += vals.size
+    }
+
+    fun notifyBatch(vals: Collection<T>) {
         // We know the hwm must have grown by at least `vals.size`. If it has grown by exactly `vals.size` then we can
         // fast path the observers, otherwise we have to go back to the db for the whole batch.
+        val dbHwm = getDbHwm()
+        if (hwm + vals.size == dbHwm) {
+            notifyObservers(vals)
+        }
 
-
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        notifyObservers(fetch(hwm, dbHwm + 1))
     }
 }
