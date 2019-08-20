@@ -224,11 +224,16 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val log = ctor.invoke()
 
         val counter = AtomicInteger(0)
-
-        log.tail { counter.incrementAndGet() }
-
         val toInsert = 100
-        log.batchRecord(IntStream.range(0, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toList()))
+        val entries =
+            IntStream.range(0, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toSet())
+
+        log.tail {
+            counter.incrementAndGet()
+            assert(entries.contains(it))
+        }
+
+        log.batchRecord(entries)
 
         assertEquals(toInsert, counter.get())
     }

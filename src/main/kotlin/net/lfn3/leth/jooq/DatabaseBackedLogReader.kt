@@ -124,7 +124,9 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
 
     private fun getDbHwm(): Long {
         return dslProvider().use { dsl ->
-            dsl.select(DSL.max(readOnlyLogMappings.sequenceField)).fetchOne().get(0, Long::class.java)
+            dsl.select(DSL.max(readOnlyLogMappings.sequenceField))
+                .from(readOnlyLogMappings.table)
+                .fetchOne().get(0, Long::class.java)
         }
     }
 
@@ -148,8 +150,8 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         val dbHwm = getDbHwm()
         if (hwm + vals.size == dbHwm) {
             notifyObservers(vals)
+        } else {
+            notifyObservers(fetch(hwm, dbHwm + 1))
         }
-
-        notifyObservers(fetch(hwm, dbHwm + 1))
     }
 }
