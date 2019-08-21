@@ -13,7 +13,7 @@ class CleanDatabaseBackedLog<T, R : TableRecord<R>>(
     val logWriterMappings: LogWriterMappings<T, R>,
     private val jdbcUrl : String = DEFAULT_JDBC_URL + System.nanoTime(),
     val dslProvider : () -> DSLContext = { DSL.using(jdbcUrl) },
-    private val log: DatabaseBackedLog<T, R> = DatabaseBackedLog(logWriterMappings, dslProvider)
+    val log: DatabaseBackedLog<T, R> = DatabaseBackedLog(logWriterMappings, dslProvider)
 ) : Log<T> by log, AutoCloseable {
 
     private val conn: Connection = migrate(jdbcUrl) //We hang onto this so our database doesn't get torn down

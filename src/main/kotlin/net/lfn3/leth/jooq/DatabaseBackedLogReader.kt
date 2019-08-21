@@ -84,7 +84,8 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
 
     override fun tail(start: Long, fn: (T) -> Unit) {
         //TODO: how to handle concurrent inserts? Probably something involving the high water mark
-        fetch(start, hwm, desc = false).forEach(fn)
+        val fromDb = fetch(start, hwm + 1, desc = false)
+        fromDb.forEach(fn)
         observers.add(fn)
     }
 
@@ -151,7 +152,7 @@ open class DatabaseBackedLogReader<T, R : Record>(private val readOnlyLogMapping
         if (hwm + vals.size == dbHwm) {
             notifyObservers(vals)
         } else {
-            notifyObservers(fetch(hwm, dbHwm + 1))
+            notifyObservers(fetch(hwm, dbHwm + 1)) //TODO this did something weird when outside of the else block?
         }
     }
 }

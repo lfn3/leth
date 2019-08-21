@@ -68,6 +68,9 @@ class DatabaseBackedLogTest {
 
         val counter = AtomicInteger()
 
+        //Normally you'd have to attach a ThreadBackedLogPoller to make this happen
+        log.log.reader.checkDatabase()
+
         log.tail { counter.incrementAndGet() }
 
         assertEquals(1, counter.get())

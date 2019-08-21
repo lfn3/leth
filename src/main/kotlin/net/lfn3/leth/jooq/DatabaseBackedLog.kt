@@ -10,7 +10,8 @@ import org.jooq.exception.DataAccessException
 class DatabaseBackedLog<T, R : TableRecord<R>>(
     private val logWriterMappings: LogWriterMappings<T, R>,
     private val dslProvider: () -> DSLContext,
-    private val reader: DatabaseBackedLogReader<T, R> = DatabaseBackedLogReader(
+    //Visible for testing
+    val reader: DatabaseBackedLogReader<T, R> = DatabaseBackedLogReader(
         logWriterMappings.asReadonly(),
         dslProvider = dslProvider
     )
