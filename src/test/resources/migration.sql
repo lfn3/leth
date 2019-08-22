@@ -1,4 +1,4 @@
-create sequence logged_seq start with 0;
+create sequence logged_seq start with 1;
 
 create table if not exists logged (
   log_id bigint default logged_seq.nextval primary key,
