@@ -207,7 +207,18 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         @Test
         fun `Observer that throws should not effect other observers when batch inserting`() {
-            TODO()
+            val log = ctor.invoke()
+
+            val counter = AtomicInteger(0)
+            val toInsert = 100
+            val entries =
+                IntStream.range(0, toInsert).mapToObj { Pair(1.toLong(), it.toLong()) }.collect(Collectors.toSet())
+
+            log.tail { throw IllegalStateException() }
+            log.tail { counter.incrementAndGet() }
+
+            log.batchRecord(entries)
+            assertEquals(toInsert, counter.get())
         }
     }
 
