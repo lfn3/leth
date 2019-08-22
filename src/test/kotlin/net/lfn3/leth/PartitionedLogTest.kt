@@ -37,4 +37,14 @@ abstract class PartitionedLogTest<T : LogWriter<Pair<Long, Long>>>(private val w
         writer.record(Pair(2, 3))
         assertEquals(1, part2.size)
     }
+
+    @Test
+    fun `Should not see parent updates in child log tail`() {
+        TODO()
+    }
+
+    @Test
+    fun `Should not see parent updates in child log tail for batch update`() {
+        TODO()
+    }
 }

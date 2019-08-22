@@ -204,6 +204,11 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
             log.record(Pair(5L, 12L))
             assertEquals(1, counter.get())
         }
+
+        @Test
+        fun `Observer that throws should not effect other observers when batch inserting`() {
+            TODO()
+        }
     }
 
     @Nested
@@ -246,7 +251,7 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
             val entry = Pair(12L, 3L)
             val seq = log.record(entry)
-            log.tail { fail("Should not have written back identical value") }
+            log.tail(seq + 1) { fail("Should not have written back identical value") }
 
             log.update({ seq }, { Pair(it.first, it.second) })
 

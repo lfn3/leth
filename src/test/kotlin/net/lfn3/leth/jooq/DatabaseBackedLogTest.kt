@@ -95,4 +95,12 @@ class DatabaseBackedLogTest {
 
         assertEquals(1, counter.get())
     }
+
+    @Test
+    fun `Observer that throws should not effect other observers when there is a missed update`() {
+        // Attach throwing observer and counting observer.
+        // Do an direct insert, then a regular insert
+        // Make sure we see the update in the counting observer
+        TODO()
+    }
 }
