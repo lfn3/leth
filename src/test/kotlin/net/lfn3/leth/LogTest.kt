@@ -19,9 +19,11 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         val log = ctor.invoke()
 
         val entry = Pair(6L, 7L)
-        log.record(entry)
+        val seq = log.record(entry)
+        val (queriedSeq, queriedVal) = log.headWithSeq()!!
 
-        assertEquals(entry, log.head())
+        assertEquals(entry, queriedVal)
+        assertEquals(seq, queriedSeq)
         assertEquals(1, log.size)
     }
 
@@ -174,14 +176,14 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
         }
 
         @Test
-        fun `Can tail only updates using size`() {
+        fun `Can tail only updates using seq + 1`() {
             val log = ctor.invoke()
             val counter = AtomicInteger(0)
 
             val entry = Pair(12L, 3L)
             val seq = log.record(entry)
 
-            log.tail(log.size) { counter.incrementAndGet() }
+            log.tail(seq + 1) { counter.incrementAndGet() }
 
             assertEquals(0, counter.get())
 
