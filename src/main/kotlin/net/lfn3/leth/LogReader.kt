@@ -7,7 +7,7 @@ interface LogReader<T> : Iterable<T> {
     fun tail(fn : (T) -> Unit) {
         tail(0, fn)
     }
-    fun tail(start : Long, fn : (T) -> Unit)
+    fun tail(from : Long, fn : (T) -> Unit)
     val size: Long
     fun isEmpty(): Boolean = size == 0L
 
@@ -33,8 +33,8 @@ interface LogReader<T> : Iterable<T> {
                     log.tail { fn(f(it)) }
                 }
 
-                override fun tail(start: Long, fn: (U) -> Unit) {
-                    log.tail(start) { fn(f(it)) }
+                override fun tail(from: Long, fn: (U) -> Unit) {
+                    log.tail(from) { fn(f(it)) }
                 }
 
                 override val size: Long

@@ -6,14 +6,15 @@ import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.SelectSeekStep1
 import org.jooq.impl.DSL
+import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
 
 open class DatabaseBackedLogReader<T, R : Record>(
     private val readOnlyLogMappings: ReadOnlyLogMappings<T, R>,
     private val dslProvider: () -> DSLContext
 ) : LogReader<T> {
-    @Volatile
-    private var hwm: Long = 0
+    private var seenHwm: AtomicLong = AtomicLong(0)
     //TODO: these won't get notified if something gets changed when not linked to a writer.
     // Unless you attach a thread backed log poller
     private val observers: MutableList<(newEntry: T) -> Unit> = CopyOnWriteArrayList()
@@ -86,17 +87,19 @@ open class DatabaseBackedLogReader<T, R : Record>(
                 readOnlyLogMappings.sequenceField.greaterOrEqual(fromInclusive),
                 readOnlyLogMappings.sequenceField.lessThan(toExclusive),
                 desc = desc
-            )
-                .fetch()
+            ).fetch()
                 .map(readOnlyLogMappings.fromRecord)
         }
     }
 
-    override fun tail(start: Long, fn: (T) -> Unit) {
+    override fun tail(from: Long, fn: (T) -> Unit) {
         //TODO: how to handle concurrent inserts? Probably something involving the high water mark
-        val fromDb = fetch(start, hwm + 1, desc = false)
-        fromDb.forEach(fn)
-        observers.add(fn)
+        // note what's here now isn't sufficient
+        synchronized(observers) {
+            val fromDb = fetch(from, seenHwm.get() + 1, desc = false)
+            fromDb.forEach(fn)
+            observers.add(fn)
+        }
     }
 
     override val size: Long
@@ -119,31 +122,30 @@ open class DatabaseBackedLogReader<T, R : Record>(
     //This is used to fast path around on write
     //TODO: tests!
     internal fun notify(seq: Long, new: T) {
-        if (seq <= hwm) { //Should have already seen these messages (somehow?!)
-            return
-        }
-
-        if (seq != hwm + 1) {
-            val missed = fetch(hwm + 1, seq)
-            observers.forEach { ob ->
-                try {
-                    missed.forEach { ob(it) }
-                } catch (e: Exception) {
-                    //TODO: allow wiring of an onException function here?
-                }
+        var updatesToFire : Collection<T>
+        do {
+            val capturedHwm = seenHwm.get()
+            if (seq <= capturedHwm) {
+                //Should have already seen this message thanks to another thread
+                updatesToFire = Collections.emptyList()
+                break
+            } else if (seq == capturedHwm + 1) {
+                //This is the next expected message
+                updatesToFire = listOf(new)
+            } else {
+                //Worst case: our high water mark is behind the seq by more than 1. fetch to catch up.
+                val fetched = fetch(capturedHwm, seq).toMutableList()
+                fetched.add(new)
+                updatesToFire = fetched
+                //TODO: rather than going back to the database if we fall into this case more than once,
+                // we could take a slice of the existing 'updatesToFire'. (Since our hwm is only allowed to move forwards)
+                // Need to collect sequence numbers as well in order to make that doable.
             }
-        }
-        hwm = seq
+        } while (!seenHwm.compareAndSet(capturedHwm, seq))
 
-        if (readOnlyLogMappings.inProcessFilter(new)) {
-            observers.forEach {
-                try {
-                    it(new)
-                } catch (e: Exception) {
-                    //TODO: allow wiring of an onException function here?
-                }
-            }
-        }
+        //TODO: shouldn't just call this - might get hit by multiple different threads,
+        // which would cause messages to get delivered out of order
+        notifyObservers(updatesToFire)
     }
 
     private fun getDbHwm(): Long {
@@ -155,11 +157,25 @@ open class DatabaseBackedLogReader<T, R : Record>(
     }
 
     fun checkDatabase() {
-        val dbHwm = getDbHwm()
+        var updatesToFire : Collection<T>
+        do {
+            val seq = getDbHwm()
+            val capturedHwm = seenHwm.get()
+            if (seq <= capturedHwm) {
+                //Should have already seen this message thanks to another thread
+                updatesToFire = Collections.emptyList()
+                break
+            } else {
+                updatesToFire = fetch(capturedHwm, seq + 1)
+                //TODO: rather than going back to the database if we fall into this case more than once,
+                // we could take a slice of the existing 'updatesToFire'. (Since our hwm is only allowed to move forwards)
+                // Need to collect sequence numbers as well in order to make that doable.
+            }
+        } while (!seenHwm.compareAndSet(capturedHwm, seq))
 
-        if (dbHwm > hwm) {
-            notifyObservers(fetch(hwm, dbHwm + 1))
-        }
+        //TODO: shouldn't just call this - might get hit by multiple different threads,
+        // which would cause messages to get delivered out of order
+        notifyObservers(updatesToFire)
     }
 
     private fun notifyObservers(vals: Collection<T>) {
@@ -171,14 +187,14 @@ open class DatabaseBackedLogReader<T, R : Record>(
                 //TODO: allow wiring of an onException function here?
             }
         }
-        hwm += vals.size
     }
 
     fun notifyBatch(vals: Collection<T>) {
         // We know the hwm must have grown by at least `vals.size`. If it has grown by exactly `vals.size` then we can
         // fast path the observers, otherwise we have to go back to the db for the whole batch.
         val dbHwm = getDbHwm()
-        if (hwm + vals.size == dbHwm) {
+        val hwm = this.seenHwm.get()
+        if (hwm + vals.size == dbHwm && this.seenHwm.compareAndSet(hwm, dbHwm)) {
             notifyObservers(vals)
         } else {
             notifyObservers(fetch(hwm, dbHwm + 1)) //TODO this did something weird when outside of the else block?

@@ -1,7 +1,6 @@
 package net.lfn3.leth.unsafe
 
 import net.lfn3.leth.Log
-import java.lang.IllegalArgumentException
 import java.util.*
 
 /**
@@ -36,8 +35,8 @@ class InMemoryLog<T> : Log<T> {
         observers.add(fn)
     }
 
-    override fun tail(start: Long, fn: (T) -> Unit) {
-        items.subList(start.toInt(), items.size).forEach(fn)
+    override fun tail(from: Long, fn: (T) -> Unit) {
+        items.subList(from.toInt(), items.size).forEach(fn)
         observers.add(fn)
     }
 

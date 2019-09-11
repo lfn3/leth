@@ -2,6 +2,7 @@ package net.lfn3.leth
 
 import org.junit.jupiter.api.Assertions
 import java.lang.Exception
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import java.util.stream.Collectors
 import java.util.stream.LongStream
@@ -99,8 +100,38 @@ abstract class ConcurrentLogTest(private val ctor : () -> Log<Pair<Long, Long>>)
 
     @Test
     fun `Tailing should not miss any entries`() {
-        TODO("Spin up threads to insert and repeatedly tail, " +
-                "make sure tail threads see all inserts at the end of the test")
+        val log = ctor()
+
+        val threadCount : Long = 2
+        val insertCount : Long = 1_000
+        val toInsert = LongStream.range(0, insertCount).boxed().collect(Collectors.toList())
+        val expectedNext = ConcurrentHashMap<Long, Long>()
+        LongStream.range(0, threadCount).forEach { expectedNext[it] = 0; }
+
+        // I think the problem here is that notify (on the read side) is being called from multiple different threads.
+        // Really, that notification needs to be put in queue or something and processed on another thread.
+        // Or, every operation dealing with the hwm needs to be a CAS style operation?
+
+        log.tail {
+            assertEquals(expectedNext[it.first], it.second)
+            expectedNext[it.first] = it.second + 1
+        }
+
+        val threads : List<Thread> = LongStream.range(0, threadCount)
+            .mapToObj { l1 -> Thread { toInsert.forEach { l2 -> log.record(Pair(l1, l2)); } } }
+            .collect(Collectors.toList())
+
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+
+        LongStream.range(0, threadCount).forEach { expectedNext[it] = 0; }
+
+        log.tail {
+            assertEquals(expectedNext[it.first], it.second)
+            expectedNext[it.first] = it.second + 1
+        }
+
+        assertEquals(threadCount * insertCount, log.size)
     }
 
     @Test

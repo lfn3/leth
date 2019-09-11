@@ -8,10 +8,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.stream.Collectors
 import java.util.stream.IntStream
 import java.util.stream.LongStream
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.fail
+import kotlin.test.*
 
 abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
     @Test
@@ -81,6 +78,27 @@ abstract class LogTest(private val ctor: () -> Log<Pair<Long, Long>>) {
 
         assertEquals(entry, log.head())
         assertEquals(entry, indexed.head(5))
+    }
+
+    @Test
+    fun `Can map over log`() {
+        val log = ctor.invoke()
+        val mapped = LogReader.map(log) { it.first + it.second }
+        val counter = AtomicLong()
+
+        assertNull(mapped.head())
+
+        log.record(Pair(3, 4))
+
+        mapped.tail { counter.addAndGet(it) }
+
+        assertEquals(7, counter.get())
+        assertEquals(7, mapped.head())
+
+        log.record(Pair(2, 1))
+
+        assertEquals(10, counter.get())
+        assertEquals(3, mapped.head())
     }
 
     @Nested
