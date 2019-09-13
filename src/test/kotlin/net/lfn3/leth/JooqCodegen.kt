@@ -17,6 +17,7 @@ object JooqCodegen {
         val dbClass = org.jooq.meta.h2.H2Database::class.java
         val database = Database().withName(dbClass.canonicalName)
             .withInputSchema("PUBLIC")
+            .withIncludeSequences(true)
 
         val target = org.jooq.meta.jaxb.Target()
             .withPackageName("net.lfn3.leth.jooq")

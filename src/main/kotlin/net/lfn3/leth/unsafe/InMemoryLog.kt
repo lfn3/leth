@@ -47,14 +47,15 @@ class InMemoryLog<T> : Log<T> {
         return (items.size - 1).toLong()
     }
 
-    override fun update(getSequence: () -> Long, fn: (T) -> T) {
-        val toUpdate = items[Math.toIntExact(getSequence())]
+    override fun update(getSequence: () -> Long, fn: (T) -> T): Pair<Long, T> {
+        val seq = getSequence()
+        val toUpdate = items[Math.toIntExact(seq)]
         val updated = fn(toUpdate)
 
         if (updated == toUpdate) {
-            return
+            return Pair(seq, toUpdate)
         }
 
-        record(updated)
+        return Pair(record(updated), updated)
     }
 }

@@ -14,6 +14,7 @@ class DatabaseBackedLogTest {
         Logged.LOGGED,
         { Pair(it.valueOne, it.valueTwo) },
         Logged.LOGGED.LOG_ID,
+        Sequences.LOGGED_SEQ,
         {
             val rec = LoggedRecord()
             rec.valueOne = it.first
