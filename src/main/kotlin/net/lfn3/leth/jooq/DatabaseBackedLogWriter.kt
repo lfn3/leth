@@ -27,11 +27,7 @@ class DatabaseBackedLogWriter<T, R : TableRecord<R>>(
         }
     }
 
-    override fun record(entry: T): Long {
-        val dbr = logWriterMappings.toRecord.invoke(entry)
-
-        return executeInsert(dbr)
-    }
+    override fun record(entry: T): Long = executeInsert(logWriterMappings.toRecord(entry))
 
     @Throws(DataAccessException::class)
     override fun update(getSequence: () -> Long, fn: (T) -> T): Pair<Long, T> {
