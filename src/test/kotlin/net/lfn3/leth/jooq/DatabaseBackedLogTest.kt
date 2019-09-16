@@ -73,7 +73,7 @@ class DatabaseBackedLogTest {
         log.tail { counter.incrementAndGet() }
 
         //Normally you'd have to attach a ThreadBackedLogPoller to make this happen
-        log.log.reader.checkDatabase()
+        log.reader.checkDatabase()
 
         assertEquals(1, counter.get())
     }
@@ -142,7 +142,7 @@ class DatabaseBackedLogTest {
         }
 
         //Normally you'd have to attach a ThreadBackedLogPoller to make this happen
-        log.log.reader.checkDatabase()
+        log.reader.checkDatabase()
 
         assertEquals(1, counter.get())
     }
@@ -166,7 +166,7 @@ class DatabaseBackedLogTest {
         }
 
         //Normally you'd have to attach a ThreadBackedLogPoller to make this happen
-        log.log.reader.checkDatabase()
+        log.reader.checkDatabase()
 
         assertEquals(1, counter.get())
     }

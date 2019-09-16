@@ -10,7 +10,7 @@ internal abstract class DatabaseOperation<T>(
 ) {
     abstract fun doOperation(dsl : DSLContext) : T
 
-    fun setSeq(seq : Long) {
+    open fun setSeq(seq : Long) {
         check(this.seq == NOT_SET) { "Seq has already been set to " + this.seq }
         this.seq = seq
     }
