@@ -1,6 +1,11 @@
 package net.lfn3.leth
 
-abstract class HeadComputed <T, U>(log: LogReader<T>, init: U, op: (acc : U, T) -> U) {
+import LogConsumer
+
+abstract class HeadComputed <T, U>(log: LogReader<T>,
+                                   logFollower: LogFollower<T>,
+                                   init: U,
+                                   op: (acc : U, T) -> U) {
     protected var value : U = init
 
     init {
@@ -9,10 +14,12 @@ abstract class HeadComputed <T, U>(log: LogReader<T>, init: U, op: (acc : U, T) 
             value = op(init, head)
         }
 
-        val boundOp : (T) -> Unit = {
-            val result = op(value, it)
-            value = result
+        val logConsumer = object : LogConsumer<T> {
+            override fun accept(t: Long, u: T) {
+                val result = op(value, u)
+                value = result
+            }
         }
-        log.tail(boundOp)
+        logFollower.tail(logConsumer)
     }
 }

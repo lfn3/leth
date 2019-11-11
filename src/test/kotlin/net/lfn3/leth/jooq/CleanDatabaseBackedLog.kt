@@ -17,11 +17,11 @@ class CleanDatabaseBackedLog<T, R : TableRecord<R>>(
     val log: Log<T> = Log.from(reader, notifier)
 ) : Log<T> by log, AutoCloseable {
 
+    private val conn: Connection = migrate(jdbcUrl) //We hang onto this so our database doesn't get torn down
+
     init {
         writer.start() //Normally you'd do this as part of application startup but this is just for tests, so eh.
     }
-
-    private val conn: Connection = migrate(jdbcUrl) //We hang onto this so our database doesn't get torn down
 
     protected fun finalize() {
         writer.stop()

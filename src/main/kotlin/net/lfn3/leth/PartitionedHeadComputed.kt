@@ -1,5 +1,7 @@
 package net.lfn3.leth
 
+import LogConsumer
+
 abstract class PartitionedHeadComputed<K, V, U>(log: PartitonedLog<K, V>, init: U, op: (acc : U, K, V) -> U) {
     protected var value : U = init
 

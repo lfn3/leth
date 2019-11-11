@@ -1,13 +1,17 @@
 package net.lfn3.leth
 
-interface LogReader<T> : Iterable<T> {
+interface LogReader<T> {
     fun head() : T?
     fun headWithSeq() : Pair<Long, T>?
-    fun get(sequence: Long) : T?
-    fun tail(fn : (T) -> Unit) {
-        tail(0, fn)
+    fun get(sequence: Long) : T? {
+        val iter = getBatch(sequence, 1).iterator()
+        return if (iter.hasNext()) {
+            iter.next()
+        } else {
+            null
+        }
     }
-    fun tail(from : Long, fn : (T) -> Unit)
+    fun getBatch(fromSequence: Long, maxSize: Long) : Iterable<T>
     val size: Long
     fun isEmpty(): Boolean = size == 0L
 
@@ -29,31 +33,14 @@ interface LogReader<T> : Iterable<T> {
                     return f(v)
                 }
 
-                override fun tail(fn: (newEntry: U) -> Unit) {
-                    log.tail { fn(f(it)) }
-                }
-
-                override fun tail(from: Long, fn: (U) -> Unit) {
-                    log.tail(from) { fn(f(it)) }
+                override fun getBatch(fromSequence: Long, maxSize: Long): Iterable<U> {
+                    return log.getBatch(fromSequence, maxSize).map(f)
                 }
 
                 override val size: Long
                     get() = log.size
 
                 override fun isEmpty(): Boolean = log.isEmpty()
-
-                override fun iterator(): Iterator<U> {
-                    val iter = log.iterator()
-                    return object : Iterator<U> {
-                        override fun hasNext(): Boolean {
-                            return iter.hasNext()
-                        }
-
-                        override fun next(): U {
-                            return f(iter.next())
-                        }
-                    }
-                }
             }
         }
     }
